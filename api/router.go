@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yourusername/real-time-payments/api/handlers"
 	"github.com/yourusername/real-time-payments/internal/account"
 	"github.com/yourusername/real-time-payments/internal/auth"
@@ -35,6 +36,7 @@ func (r *Router) Setup() *gin.Engine {
 	r.engine.Use(middleware.RecoveryMiddleware())
 	r.engine.Use(middleware.LoggingMiddleware())
 	r.engine.Use(middleware.CORSMiddleware())
+	r.engine.Use(middleware.MetricsMiddleware())
 
 	// Initialize repositories
 	userRepo := user.NewRepository(r.db)
@@ -55,11 +57,16 @@ func (r *Router) Setup() *gin.Engine {
 	ledgerHandler := handlers.NewLedgerHandler(ledgerService)
 	healthHandler := handlers.NewHealthHandler(r.db)
 
+	// Metrics endpoint (Prometheus)
+	r.engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	// Public routes
 	public := r.engine.Group("/api/v1")
 	{
-		// Health
+		// Health checks
 		public.GET("/health", healthHandler.Health)
+		public.GET("/health/ready", healthHandler.Readiness)
+		public.GET("/health/live", healthHandler.Liveness)
 
 		// Auth
 		public.POST("/auth/register", authHandler.Register)

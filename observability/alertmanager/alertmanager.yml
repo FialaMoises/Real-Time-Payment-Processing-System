@@ -1,0 +1,65 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@bancofiala.com'
+  smtp_auth_username: 'alerts@bancofiala.com'
+  smtp_auth_password: 'your-password-here'
+
+# Templates for notifications
+templates:
+  - '/etc/alertmanager/*.tmpl'
+
+# Route tree for alerts
+route:
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+
+  routes:
+    # Critical alerts go to pager and email
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      continue: true
+
+    # Warning alerts go to email only
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+
+# Receivers configuration
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://host.docker.internal:8080/api/v1/webhooks/alerts'
+        send_resolved: true
+
+  - name: 'critical-receiver'
+    webhook_configs:
+      - url: 'http://host.docker.internal:8080/api/v1/webhooks/alerts/critical'
+        send_resolved: true
+    # Uncomment to enable email notifications
+    # email_configs:
+    #   - to: 'ops-team@bancofiala.com'
+    #     subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+    #     html: '{{ template "email.default.html" . }}'
+
+  - name: 'warning-receiver'
+    webhook_configs:
+      - url: 'http://host.docker.internal:8080/api/v1/webhooks/alerts/warning'
+        send_resolved: true
+    # Uncomment to enable email notifications
+    # email_configs:
+    #   - to: 'dev-team@bancofiala.com'
+    #     subject: '⚠️ WARNING: {{ .GroupLabels.alertname }}'
+    #     html: '{{ template "email.default.html" . }}'
+
+# Inhibition rules (suppress certain alerts when others fire)
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']

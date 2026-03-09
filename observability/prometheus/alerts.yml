@@ -1,0 +1,99 @@
+groups:
+  - name: banco_fiala_alerts
+    interval: 30s
+    rules:
+      # High Error Rate Alert
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.method }} {{ $labels.path }}"
+
+      # High Response Time
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.method }} {{ $labels.path }}"
+
+      # Database Connection Issues
+      - alert: DatabaseConnectionFailed
+        expr: |
+          database_connections_failed_total > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection failures detected"
+          description: "{{ $value }} database connection failures in the last minute"
+
+      # High Transaction Failure Rate
+      - alert: HighTransactionFailureRate
+        expr: |
+          rate(transactions_failed_total[5m]) / rate(transactions_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          component: transaction
+        annotations:
+          summary: "High transaction failure rate"
+          description: "Transaction failure rate is {{ $value | humanizePercentage }}"
+
+      # API Server Down
+      - alert: APIServerDown
+        expr: |
+          up{job="api-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "API Server is down"
+          description: "API Server has been down for more than 1 minute"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}MB"
+
+      # Database Response Time
+      - alert: SlowDatabaseQueries
+        expr: |
+          database_query_duration_seconds > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Database query duration is {{ $value }}s"
+
+      # Concurrent Transactions
+      - alert: HighConcurrentTransactions
+        expr: |
+          transactions_in_progress > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: transaction
+        annotations:
+          summary: "High number of concurrent transactions"
+          description: "{{ $value }} transactions are currently in progress"

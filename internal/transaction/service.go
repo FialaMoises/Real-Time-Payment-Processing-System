@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yourusername/real-time-payments/internal/account"
 	"github.com/yourusername/real-time-payments/internal/ledger"
 	apperrors "github.com/yourusername/real-time-payments/pkg/errors"
 	"github.com/yourusername/real-time-payments/pkg/logger"
+	"github.com/yourusername/real-time-payments/pkg/metrics"
 )
 
 type Service interface {
@@ -46,6 +48,8 @@ func NewService(
 
 // Deposit adds money to an account
 func (s *service) Deposit(ctx context.Context, req *DepositRequest) (*TransactionResponse, error) {
+	start := time.Now()
+
 	// Check idempotency
 	existing, err := s.txRepo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err != nil {
@@ -130,6 +134,10 @@ func (s *service) Deposit(ctx context.Context, req *DepositRequest) (*Transactio
 		Str("account_id", req.AccountID.String()).
 		Msg("deposit completed")
 
+	// Record metrics
+	duration := time.Since(start).Seconds()
+	metrics.RecordTransaction(TypeDeposit, "success", duration, req.Amount)
+
 	return &TransactionResponse{
 		TransactionID: tx.ID,
 		Status:        StatusCompleted,
@@ -139,6 +147,8 @@ func (s *service) Deposit(ctx context.Context, req *DepositRequest) (*Transactio
 
 // Withdrawal removes money from an account
 func (s *service) Withdrawal(ctx context.Context, req *WithdrawalRequest) (*TransactionResponse, error) {
+	start := time.Now()
+
 	// Check idempotency
 	existing, err := s.txRepo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err != nil {
@@ -228,6 +238,10 @@ func (s *service) Withdrawal(ctx context.Context, req *WithdrawalRequest) (*Tran
 		Str("account_id", req.AccountID.String()).
 		Msg("withdrawal completed")
 
+	// Record metrics
+	duration := time.Since(start).Seconds()
+	metrics.RecordTransaction(TypeWithdrawal, "success", duration, req.Amount)
+
 	return &TransactionResponse{
 		TransactionID: tx.ID,
 		Status:        StatusCompleted,
@@ -237,6 +251,8 @@ func (s *service) Withdrawal(ctx context.Context, req *WithdrawalRequest) (*Tran
 
 // Transfer moves money between two accounts (WITH DEADLOCK PREVENTION)
 func (s *service) Transfer(ctx context.Context, req *TransferRequest) (*TransactionResponse, error) {
+	start := time.Now()
+
 	// Validate
 	if req.FromAccountID == req.ToAccountID {
 		return nil, apperrors.New("INVALID_TRANSFER", "Cannot transfer to same account", 400)
@@ -360,6 +376,10 @@ func (s *service) Transfer(ctx context.Context, req *TransferRequest) (*Transact
 		Str("from_account", req.FromAccountID.String()).
 		Str("to_account", req.ToAccountID.String()).
 		Msg("transfer completed")
+
+	// Record metrics
+	duration := time.Since(start).Seconds()
+	metrics.RecordTransaction(TypeTransfer, "success", duration, req.Amount)
 
 	return &TransactionResponse{
 		TransactionID: tx.ID,
