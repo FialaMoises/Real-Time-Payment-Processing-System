@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banco Fiala - Sistema de Pagamentos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>🏦 Banco Fiala</h1>
+                <p class="tagline">Seu banco digital de confiança</p>
+            </div>
+            <div id="user-info" class="user-info" style="display: none;">
+                <span id="user-name"></span>
+                <button onclick="logout()" class="btn btn-secondary">Sair</button>
+            </div>
+        </header>
+
+        <!-- Alert Messages -->
+        <div id="alert" class="alert" style="display: none;"></div>
+
+        <!-- Login/Register Section -->
+        <div id="auth-section" class="card">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('login')">Login</button>
+                <button class="tab-btn" onclick="showTab('register')">Criar Conta</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="tab-content active">
+                <h2>Entrar na sua conta</h2>
+                <form onsubmit="login(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="login-email" required placeholder="seu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="login-password" required placeholder="********">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                </form>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="tab-content">
+                <h2>Criar nova conta</h2>
+                <form onsubmit="register(event)">
+                    <div class="form-group">
+                        <label>Nome Completo</label>
+                        <input type="text" id="reg-name" required placeholder="João Silva">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="reg-email" required placeholder="joao@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>CPF</label>
+                        <input type="text" id="reg-cpf" required placeholder="123.456.789-00" maxlength="14">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone (opcional)</label>
+                        <input type="tel" id="reg-phone" placeholder="+5511999999999">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="reg-password" required placeholder="Mínimo 8 caracteres" minlength="8">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Criar Conta</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Section (Hidden until login) -->
+        <div id="dashboard-section" style="display: none;">
+            <!-- Account Info -->
+            <div class="card account-card">
+                <div class="account-header">
+                    <div>
+                        <h3>Minha Conta</h3>
+                        <p class="account-number">Conta: <span id="account-number">-</span></p>
+                    </div>
+                    <div class="balance-display">
+                        <p class="balance-label">Saldo Disponível</p>
+                        <p class="balance-amount">R$ <span id="balance">0,00</span></p>
+                    </div>
+                </div>
+                <button onclick="refreshBalance()" class="btn btn-secondary btn-small">🔄 Atualizar</button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button onclick="showSection('deposit')" class="action-btn">
+                    <span class="icon">💰</span>
+                    <span>Depositar</span>
+                </button>
+                <button onclick="showSection('withdrawal')" class="action-btn">
+                    <span class="icon">💸</span>
+                    <span>Sacar</span>
+                </button>
+                <button onclick="showSection('transfer')" class="action-btn">
+                    <span class="icon">🔄</span>
+                    <span>Transferir</span>
+                </button>
+                <button onclick="showSection('history')" class="action-btn">
+                    <span class="icon">📋</span>
+                    <span>Histórico</span>
+                </button>
+                <button onclick="showSection('ledger')" class="action-btn">
+                    <span class="icon">📖</span>
+                    <span>Ledger</span>
+                </button>
+            </div>
+
+            <!-- Deposit Section -->
+            <div id="deposit-section" class="card transaction-card" style="display: none;">
+                <h2>💰 Depositar</h2>
+                <form onsubmit="deposit(event)">
+                    <div class="form-group">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="deposit-amount" required min="0.01" step="0.01" placeholder="100.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição (opcional)</label>
+                        <input type="text" id="deposit-description" placeholder="Depósito inicial">
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">Confirmar Depósito</button>
+                        <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Withdrawal Section -->
+            <div id="withdrawal-section" class="card transaction-card" style="display: none;">
+                <h2>💸 Sacar</h2>
+                <form onsubmit="withdrawal(event)">
+                    <div class="form-group">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="withdrawal-amount" required min="0.01" step="0.01" placeholder="50.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição (opcional)</label>
+                        <input type="text" id="withdrawal-description" placeholder="Saque">
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">Confirmar Saque</button>
+                        <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Transfer Section -->
+            <div id="transfer-section" class="card transaction-card" style="display: none;">
+                <h2>🔄 Transferir</h2>
+                <form onsubmit="transfer(event)">
+                    <div class="form-group">
+                        <label>Conta Destino (Account ID)</label>
+                        <input type="text" id="transfer-to-account" required placeholder="UUID da conta destino">
+                        <small>Cole o ID da conta que vai receber a transferência</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="transfer-amount" required min="0.01" step="0.01" placeholder="200.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição (opcional)</label>
+                        <input type="text" id="transfer-description" placeholder="Pagamento">
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">Confirmar Transferência</button>
+                        <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- History Section -->
+            <div id="history-section" class="card" style="display: none;">
+                <h2>📋 Histórico de Transações</h2>
+                <div id="transactions-list" class="transactions-list">
+                    <p class="loading">Carregando...</p>
+                </div>
+                <button onclick="hideAllSections()" class="btn btn-secondary">Fechar</button>
+            </div>
+
+            <!-- Ledger Section -->
+            <div id="ledger-section" class="card" style="display: none;">
+                <h2>📖 Ledger (Histórico Imutável)</h2>
+                <p class="info-text">Este é o registro imutável de todas as operações. Não pode ser alterado ou deletado.</p>
+                <div id="ledger-list" class="transactions-list">
+                    <p class="loading">Carregando...</p>
+                </div>
+                <button onclick="hideAllSections()" class="btn btn-secondary">Fechar</button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>🏦 Banco Fiala - Sistema de Pagamentos em Tempo Real</p>
+            <p class="tech-stack">Go • PostgreSQL • Redis • RabbitMQ • Docker</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
