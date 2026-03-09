@@ -10,7 +10,41 @@ let authToken = null;
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     formatCPFInput();
+    initializeTheme();
 });
+
+// Theme Management
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        updateThemeToggle(true);
+    }
+}
+
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-theme');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    updateThemeToggle(isLight);
+}
+
+function updateThemeToggle(isLight) {
+    const sunIcon = document.querySelector('.sun-icon');
+    const moonIcon = document.querySelector('.moon-icon');
+    const themeLabel = document.getElementById('theme-label');
+
+    if (sunIcon && moonIcon && themeLabel) {
+        if (isLight) {
+            sunIcon.style.display = 'none';
+            moonIcon.style.display = 'block';
+            themeLabel.textContent = 'Tema Escuro';
+        } else {
+            sunIcon.style.display = 'block';
+            moonIcon.style.display = 'none';
+            themeLabel.textContent = 'Tema Claro';
+        }
+    }
+}
 
 // Check if user is already logged in (from localStorage)
 function checkAuth() {
@@ -546,24 +580,34 @@ async function loadLedger() {
 
             container.innerHTML = entries.map(entry => {
                 const isCredit = entry.operation_type === 'CREDIT';
-                const amountClass = isCredit ? 'credit' : 'debit';
+                const amountClass = isCredit ? 'positive' : 'negative';
                 const sign = isCredit ? '+' : '-';
+                const operationIcon = isCredit ? '↓' : '↑';
+                const operationLabel = isCredit ? 'Crédito' : 'Débito';
 
                 return `
                     <div class="ledger-item">
-                        <div class="ledger-operation">
-                            <span>${entry.operation_type}</span>
-                            <span class="transaction-status status-completed">ID: ${entry.id}</span>
+                        <div class="ledger-icon ${amountClass}">
+                            ${operationIcon}
                         </div>
-                        <div class="ledger-details">
-                            <div><strong>Transaction:</strong> ${entry.transaction_id.substring(0, 8)}...</div>
-                            <div><strong>Data:</strong> ${formatDate(entry.created_at)}</div>
+                        <div class="ledger-info">
+                            <div class="ledger-header">
+                                <span class="ledger-operation">${operationLabel}</span>
+                                <span class="ledger-id">ID #${entry.id}</span>
+                            </div>
+                            <div class="ledger-meta">
+                                <span>TX: ${entry.transaction_id.substring(0, 13)}...</span>
+                                <span>•</span>
+                                <span>${formatDate(entry.created_at)}</span>
+                            </div>
                         </div>
-                        <div class="ledger-amount ${amountClass}">
-                            ${sign} R$ ${formatCurrency(Math.abs(entry.amount))}
-                        </div>
-                        <div style="font-size: 14px; color: var(--text-light); margin-top: 8px;">
-                            Saldo após: R$ ${formatCurrency(entry.balance_after)}
+                        <div class="ledger-amounts">
+                            <div class="ledger-amount ${amountClass}">
+                                ${sign} R$ ${formatCurrency(Math.abs(entry.amount))}
+                            </div>
+                            <div class="ledger-balance">
+                                Saldo: R$ ${formatCurrency(entry.balance_after)}
+                            </div>
                         </div>
                     </div>
                 `;
