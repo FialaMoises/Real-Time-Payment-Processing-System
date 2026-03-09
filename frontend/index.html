@@ -3,206 +3,385 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Banco Fiala - Sistema de Pagamentos</title>
+    <title>Banco Fiala - Banking Platform</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Background effect -->
+    <div class="background-overlay"></div>
+
     <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <h1>🏦 Banco Fiala</h1>
-                <p class="tagline">Seu banco digital de confiança</p>
-            </div>
-            <div id="user-info" class="user-info" style="display: none;">
-                <span id="user-name"></span>
-                <button onclick="logout()" class="btn btn-secondary">Sair</button>
-            </div>
-        </header>
-
-        <!-- Alert Messages -->
-        <div id="alert" class="alert" style="display: none;"></div>
-
-        <!-- Login/Register Section -->
-        <div id="auth-section" class="card">
-            <div class="tabs">
-                <button class="tab-btn active" onclick="showTab('login')">Login</button>
-                <button class="tab-btn" onclick="showTab('register')">Criar Conta</button>
-            </div>
-
-            <!-- Login Form -->
-            <div id="login-form" class="tab-content active">
-                <h2>Entrar na sua conta</h2>
-                <form onsubmit="login(event)">
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="login-email" required placeholder="seu@email.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Senha</label>
-                        <input type="password" id="login-password" required placeholder="********">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Entrar</button>
-                </form>
-            </div>
-
-            <!-- Register Form -->
-            <div id="register-form" class="tab-content">
-                <h2>Criar nova conta</h2>
-                <form onsubmit="register(event)">
-                    <div class="form-group">
-                        <label>Nome Completo</label>
-                        <input type="text" id="reg-name" required placeholder="João Silva">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="reg-email" required placeholder="joao@email.com">
-                    </div>
-                    <div class="form-group">
-                        <label>CPF</label>
-                        <input type="text" id="reg-cpf" required placeholder="123.456.789-00" maxlength="14">
-                    </div>
-                    <div class="form-group">
-                        <label>Telefone (opcional)</label>
-                        <input type="tel" id="reg-phone" placeholder="+5511999999999">
-                    </div>
-                    <div class="form-group">
-                        <label>Senha</label>
-                        <input type="password" id="reg-password" required placeholder="Mínimo 8 caracteres" minlength="8">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Criar Conta</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Dashboard Section (Hidden until login) -->
-        <div id="dashboard-section" style="display: none;">
-            <!-- Account Info -->
-            <div class="card account-card">
-                <div class="account-header">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="sidebar" style="display: none;">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                        <rect width="40" height="40" rx="8" fill="url(#gradient)"/>
+                        <path d="M12 20L18 26L28 14" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="gradient" x1="0" y1="0" x2="40" y2="40">
+                                <stop offset="0%" stop-color="#00F260"/>
+                                <stop offset="100%" stop-color="#0575E6"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
                     <div>
-                        <h3>Minha Conta</h3>
-                        <p class="account-number">Conta: <span id="account-number">-</span></p>
-                    </div>
-                    <div class="balance-display">
-                        <p class="balance-label">Saldo Disponível</p>
-                        <p class="balance-amount">R$ <span id="balance">0,00</span></p>
+                        <h1 class="logo-text">Banco Fiala</h1>
+                        <p class="logo-subtitle">Digital Banking</p>
                     </div>
                 </div>
-                <button onclick="refreshBalance()" class="btn btn-secondary btn-small">🔄 Atualizar</button>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="action-buttons">
-                <button onclick="showSection('deposit')" class="action-btn">
-                    <span class="icon">💰</span>
+            <nav class="nav-menu">
+                <button onclick="showDashboard()" class="nav-item active" data-section="dashboard">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="showSection('deposit')" class="nav-item" data-section="deposit">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <polyline points="5 12 12 19 19 12"></polyline>
+                    </svg>
                     <span>Depositar</span>
                 </button>
-                <button onclick="showSection('withdrawal')" class="action-btn">
-                    <span class="icon">💸</span>
+                <button onclick="showSection('withdrawal')" class="nav-item" data-section="withdrawal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="19" x2="12" y2="5"></line>
+                        <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
                     <span>Sacar</span>
                 </button>
-                <button onclick="showSection('transfer')" class="action-btn">
-                    <span class="icon">🔄</span>
+                <button onclick="showSection('transfer')" class="nav-item" data-section="transfer">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
                     <span>Transferir</span>
                 </button>
-                <button onclick="showSection('history')" class="action-btn">
-                    <span class="icon">📋</span>
-                    <span>Histórico</span>
+                <button onclick="showSection('history')" class="nav-item" data-section="history">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <span>Transações</span>
                 </button>
-                <button onclick="showSection('ledger')" class="action-btn">
-                    <span class="icon">📖</span>
+                <button onclick="showSection('ledger')" class="nav-item" data-section="ledger">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
                     <span>Ledger</span>
                 </button>
-            </div>
+            </nav>
 
-            <!-- Deposit Section -->
-            <div id="deposit-section" class="card transaction-card" style="display: none;">
-                <h2>💰 Depositar</h2>
-                <form onsubmit="deposit(event)">
-                    <div class="form-group">
-                        <label>Valor (R$)</label>
-                        <input type="number" id="deposit-amount" required min="0.01" step="0.01" placeholder="100.00">
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
                     </div>
-                    <div class="form-group">
-                        <label>Descrição (opcional)</label>
-                        <input type="text" id="deposit-description" placeholder="Depósito inicial">
+                    <div class="user-details">
+                        <p class="user-name" id="sidebar-user-name">Usuário</p>
+                        <p class="user-email" id="sidebar-user-email">user@email.com</p>
                     </div>
-                    <div class="button-group">
-                        <button type="submit" class="btn btn-primary">Confirmar Depósito</button>
-                        <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Withdrawal Section -->
-            <div id="withdrawal-section" class="card transaction-card" style="display: none;">
-                <h2>💸 Sacar</h2>
-                <form onsubmit="withdrawal(event)">
-                    <div class="form-group">
-                        <label>Valor (R$)</label>
-                        <input type="number" id="withdrawal-amount" required min="0.01" step="0.01" placeholder="50.00">
-                    </div>
-                    <div class="form-group">
-                        <label>Descrição (opcional)</label>
-                        <input type="text" id="withdrawal-description" placeholder="Saque">
-                    </div>
-                    <div class="button-group">
-                        <button type="submit" class="btn btn-primary">Confirmar Saque</button>
-                        <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Transfer Section -->
-            <div id="transfer-section" class="card transaction-card" style="display: none;">
-                <h2>🔄 Transferir</h2>
-                <form onsubmit="transfer(event)">
-                    <div class="form-group">
-                        <label>Conta Destino (Account ID)</label>
-                        <input type="text" id="transfer-to-account" required placeholder="UUID da conta destino">
-                        <small>Cole o ID da conta que vai receber a transferência</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Valor (R$)</label>
-                        <input type="number" id="transfer-amount" required min="0.01" step="0.01" placeholder="200.00">
-                    </div>
-                    <div class="form-group">
-                        <label>Descrição (opcional)</label>
-                        <input type="text" id="transfer-description" placeholder="Pagamento">
-                    </div>
-                    <div class="button-group">
-                        <button type="submit" class="btn btn-primary">Confirmar Transferência</button>
-                        <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- History Section -->
-            <div id="history-section" class="card" style="display: none;">
-                <h2>📋 Histórico de Transações</h2>
-                <div id="transactions-list" class="transactions-list">
-                    <p class="loading">Carregando...</p>
                 </div>
-                <button onclick="hideAllSections()" class="btn btn-secondary">Fechar</button>
+                <button onclick="logout()" class="btn-logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
             </div>
+        </aside>
 
-            <!-- Ledger Section -->
-            <div id="ledger-section" class="card" style="display: none;">
-                <h2>📖 Ledger (Histórico Imutável)</h2>
-                <p class="info-text">Este é o registro imutável de todas as operações. Não pode ser alterado ou deletado.</p>
-                <div id="ledger-list" class="transactions-list">
-                    <p class="loading">Carregando...</p>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Alert Messages -->
+            <div id="alert" class="alert" style="display: none;"></div>
+
+            <!-- Login/Register Section -->
+            <div id="auth-section" class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+                            <rect width="60" height="60" rx="12" fill="url(#gradient2)"/>
+                            <path d="M18 30L27 39L42 21" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                            <defs>
+                                <linearGradient id="gradient2" x1="0" y1="0" x2="60" y2="60">
+                                    <stop offset="0%" stop-color="#00F260"/>
+                                    <stop offset="100%" stop-color="#0575E6"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <h1>Banco Fiala</h1>
+                        <p>Bem-vindo ao futuro dos pagamentos</p>
+                    </div>
+
+                    <div class="auth-tabs">
+                        <button class="auth-tab active" onclick="showAuthTab('login')">Entrar</button>
+                        <button class="auth-tab" onclick="showAuthTab('register')">Criar Conta</button>
+                    </div>
+
+                    <!-- Login Form -->
+                    <div id="login-form" class="auth-form active">
+                        <form onsubmit="login(event)">
+                            <div class="input-group">
+                                <label>Email</label>
+                                <input type="email" id="login-email" required placeholder="seu@email.com">
+                            </div>
+                            <div class="input-group">
+                                <label>Senha</label>
+                                <input type="password" id="login-password" required placeholder="••••••••">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                Entrar na Conta
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Register Form -->
+                    <div id="register-form" class="auth-form">
+                        <form onsubmit="register(event)">
+                            <div class="input-group">
+                                <label>Nome Completo</label>
+                                <input type="text" id="reg-name" required placeholder="João Silva">
+                            </div>
+                            <div class="input-group">
+                                <label>Email</label>
+                                <input type="email" id="reg-email" required placeholder="joao@email.com">
+                            </div>
+                            <div class="input-group">
+                                <label>CPF</label>
+                                <input type="text" id="reg-cpf" required placeholder="123.456.789-00" maxlength="14">
+                            </div>
+                            <div class="input-group">
+                                <label>Telefone (opcional)</label>
+                                <input type="tel" id="reg-phone" placeholder="+55 11 99999-9999">
+                            </div>
+                            <div class="input-group">
+                                <label>Senha</label>
+                                <input type="password" id="reg-password" required placeholder="Mínimo 8 caracteres" minlength="8">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                Criar Minha Conta
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                <button onclick="hideAllSections()" class="btn btn-secondary">Fechar</button>
-            </div>
-        </div>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <p>🏦 Banco Fiala - Sistema de Pagamentos em Tempo Real</p>
-            <p class="tech-stack">Go • PostgreSQL • Redis • RabbitMQ • Docker</p>
-        </footer>
+                <div class="auth-features">
+                    <div class="feature">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Segurança Total</h3>
+                        <p>Seus dados protegidos com criptografia de ponta</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Transações Instantâneas</h3>
+                        <p>Pagamentos processados em tempo real</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">📱</div>
+                        <h3>100% Digital</h3>
+                        <p>Acesse de qualquer lugar, a qualquer hora</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" style="display: none;">
+                <!-- Account Cards -->
+                <div class="dashboard-grid">
+                    <!-- Main Balance Card -->
+                    <div class="balance-card">
+                        <div class="balance-header">
+                            <div>
+                                <p class="balance-label">Saldo Total</p>
+                                <h2 class="balance-value">R$ <span id="balance">0,00</span></h2>
+                            </div>
+                            <button onclick="refreshBalance()" class="btn-icon" title="Atualizar">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"></polyline>
+                                    <polyline points="1 20 1 14 7 14"></polyline>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="balance-footer">
+                            <div class="account-info">
+                                <span class="account-label">Conta</span>
+                                <span class="account-number" id="account-number">••••-••••</span>
+                            </div>
+                            <div class="account-status">
+                                <span class="status-dot"></span>
+                                <span>Ativa</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="quick-actions">
+                        <button onclick="showSection('deposit')" class="quick-action-btn deposit">
+                            <div class="quick-action-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <polyline points="5 12 12 19 19 12"></polyline>
+                                </svg>
+                            </div>
+                            <span>Depositar</span>
+                        </button>
+                        <button onclick="showSection('withdrawal')" class="quick-action-btn withdrawal">
+                            <div class="quick-action-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                                    <polyline points="5 12 12 5 19 12"></polyline>
+                                </svg>
+                            </div>
+                            <span>Sacar</span>
+                        </button>
+                        <button onclick="showSection('transfer')" class="quick-action-btn transfer">
+                            <div class="quick-action-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="17 1 21 5 17 9"></polyline>
+                                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                                </svg>
+                            </div>
+                            <span>Transferir</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions Preview -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Transações Recentes</h3>
+                        <button onclick="showSection('history')" class="btn-text">Ver Todas</button>
+                    </div>
+                    <div id="recent-transactions" class="transaction-list">
+                        <p class="empty-state">Nenhuma transação recente</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Forms -->
+            <div id="deposit-section" class="transaction-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Depositar</h2>
+                        <button onclick="hideAllSections()" class="btn-close">×</button>
+                    </div>
+                    <form onsubmit="deposit(event)" class="transaction-form">
+                        <div class="input-group">
+                            <label>Valor (R$)</label>
+                            <input type="number" id="deposit-amount" required min="0.01" step="0.01" placeholder="0,00" class="input-large">
+                        </div>
+                        <div class="input-group">
+                            <label>Descrição</label>
+                            <input type="text" id="deposit-description" placeholder="Adicionar descrição (opcional)">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Confirmar Depósito</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="withdrawal-section" class="transaction-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Sacar</h2>
+                        <button onclick="hideAllSections()" class="btn-close">×</button>
+                    </div>
+                    <form onsubmit="withdrawal(event)" class="transaction-form">
+                        <div class="input-group">
+                            <label>Valor (R$)</label>
+                            <input type="number" id="withdrawal-amount" required min="0.01" step="0.01" placeholder="0,00" class="input-large">
+                        </div>
+                        <div class="input-group">
+                            <label>Descrição</label>
+                            <input type="text" id="withdrawal-description" placeholder="Adicionar descrição (opcional)">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Confirmar Saque</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="transfer-section" class="transaction-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Transferir</h2>
+                        <button onclick="hideAllSections()" class="btn-close">×</button>
+                    </div>
+                    <form onsubmit="transfer(event)" class="transaction-form">
+                        <div class="input-group">
+                            <label>Conta Destino</label>
+                            <input type="text" id="transfer-to-account" required placeholder="ID da conta destino">
+                            <small>Cole o ID completo da conta que receberá a transferência</small>
+                        </div>
+                        <div class="input-group">
+                            <label>Valor (R$)</label>
+                            <input type="number" id="transfer-amount" required min="0.01" step="0.01" placeholder="0,00" class="input-large">
+                        </div>
+                        <div class="input-group">
+                            <label>Descrição</label>
+                            <input type="text" id="transfer-description" placeholder="Adicionar descrição (opcional)">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" onclick="hideAllSections()" class="btn btn-secondary">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Confirmar Transferência</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="history-section" class="transaction-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Histórico de Transações</h2>
+                        <button onclick="hideAllSections()" class="btn-close">×</button>
+                    </div>
+                    <div id="transactions-list" class="transaction-list">
+                        <p class="loading">Carregando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ledger-section" class="transaction-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Ledger</h2>
+                        <button onclick="hideAllSections()" class="btn-close">×</button>
+                    </div>
+                    <div class="info-banner">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <p>Registro imutável de todas as operações. Este histórico não pode ser alterado ou deletado.</p>
+                    </div>
+                    <div id="ledger-list" class="transaction-list">
+                        <p class="loading">Carregando...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script src="app.js"></script>

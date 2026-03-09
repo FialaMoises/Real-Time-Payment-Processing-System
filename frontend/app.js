@@ -26,15 +26,38 @@ function checkAuth() {
     }
 }
 
-// Tab switching
+// Tab switching (legacy)
 function showTab(tabName) {
     // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
 
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(`${tabName}-form`).classList.add('active');
+}
+
+// Auth tab switching (new layout)
+function showAuthTab(tabName) {
+    // Update auth tabs
+    document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Update auth forms
+    document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
+    document.getElementById(`${tabName}-form`).classList.add('active');
+}
+
+// Update navigation active state
+function updateNavigation(sectionName) {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('data-section') === sectionName) {
+            item.classList.add('active');
+        }
+    });
 }
 
 // Alert messages
@@ -172,11 +195,31 @@ async function getAccountInfo() {
 function showDashboard() {
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('dashboard-section').style.display = 'block';
-    document.getElementById('user-info').style.display = 'flex';
-    document.getElementById('user-name').textContent = currentUser.full_name;
 
+    // Show sidebar
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.style.display = 'flex';
+    }
+
+    // Update sidebar user info
+    const sidebarUserName = document.getElementById('sidebar-user-name');
+    const sidebarUserEmail = document.getElementById('sidebar-user-email');
+    if (sidebarUserName) sidebarUserName.textContent = currentUser.full_name;
+    if (sidebarUserEmail) sidebarUserEmail.textContent = currentUser.email;
+
+    // Legacy user info (if exists)
+    const userInfo = document.getElementById('user-info');
+    if (userInfo) {
+        userInfo.style.display = 'flex';
+        const userName = document.getElementById('user-name');
+        if (userName) userName.textContent = currentUser.full_name;
+    }
+
+    updateNavigation('dashboard');
     updateAccountDisplay();
     refreshBalance();
+    loadRecentTransactions();
 }
 
 // Update account display
@@ -217,9 +260,19 @@ function logout() {
     currentUser = null;
     currentAccount = null;
 
-    document.getElementById('auth-section').style.display = 'block';
+    document.getElementById('auth-section').style.display = 'flex';
     document.getElementById('dashboard-section').style.display = 'none';
-    document.getElementById('user-info').style.display = 'none';
+
+    // Hide sidebar
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.style.display = 'none';
+    }
+
+    const userInfo = document.getElementById('user-info');
+    if (userInfo) {
+        userInfo.style.display = 'none';
+    }
 
     hideAllSections();
     showAlert('Logout realizado com sucesso', 'info');
@@ -228,7 +281,10 @@ function logout() {
 // Show section
 function showSection(section) {
     hideAllSections();
+    document.getElementById('dashboard-section').style.display = 'none';
     document.getElementById(`${section}-section`).style.display = 'block';
+
+    updateNavigation(section);
 
     if (section === 'history') {
         loadTransactions();
@@ -239,9 +295,15 @@ function showSection(section) {
 
 // Hide all sections
 function hideAllSections() {
-    document.querySelectorAll('.transaction-card, #history-section, #ledger-section').forEach(el => {
+    document.querySelectorAll('.transaction-section, .transaction-card, #history-section, #ledger-section').forEach(el => {
         el.style.display = 'none';
     });
+
+    // Show dashboard if logged in
+    if (authToken && currentUser) {
+        document.getElementById('dashboard-section').style.display = 'block';
+        updateNavigation('dashboard');
+    }
 
     // Clear forms
     document.querySelectorAll('form').forEach(form => {
@@ -249,6 +311,51 @@ function hideAllSections() {
             form.reset();
         }
     });
+}
+
+// Load recent transactions for dashboard
+async function loadRecentTransactions() {
+    const container = document.getElementById('recent-transactions');
+    if (!container) return;
+
+    container.innerHTML = '<p class="loading">Carregando...</p>';
+
+    try {
+        const response = await fetch(`${API_URL}/transactions?account_id=${currentAccount.id}&limit=5`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const transactions = data.transactions || [];
+
+            if (transactions.length === 0) {
+                container.innerHTML = '<p class="empty-state">Nenhuma transação recente</p>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(tx => {
+                const isCredit = tx.to_account_id === currentAccount.id;
+                const typeLabel = getTransactionTypeLabel(tx.type);
+                const amountClass = isCredit ? 'positive' : 'negative';
+                const sign = isCredit ? '+' : '-';
+
+                return `
+                    <div class="transaction-item">
+                        <div class="transaction-info">
+                            <div class="transaction-type">${typeLabel}</div>
+                            <div class="transaction-desc">${tx.description || '-'}</div>
+                            <div class="transaction-date">${formatDate(tx.created_at)}</div>
+                        </div>
+                        <div class="transaction-amount ${amountClass}">${sign} R$ ${formatCurrency(tx.amount)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (error) {
+        container.innerHTML = '<p class="empty-state">Erro ao carregar</p>';
+        console.error(error);
+    }
 }
 
 // Deposit
