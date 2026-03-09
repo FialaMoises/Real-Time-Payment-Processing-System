@@ -461,7 +461,7 @@ Built to demonstrate:
 ---
 
 **Author**: Your Name
-**Contact**: your.email@example.com
-**GitHub**: https://github.com/yourusername
+**Contact**: fiala.dev@gmail.com
+**GitHub**: https://github.com/FialaMoises
 
 Made with Go
