@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yourusername/real-time-payments/internal/account"
+	"github.com/yourusername/real-time-payments/internal/fraud"
 	"github.com/yourusername/real-time-payments/internal/ledger"
 	apperrors "github.com/yourusername/real-time-payments/pkg/errors"
 	"github.com/yourusername/real-time-payments/pkg/logger"
@@ -25,11 +26,19 @@ type Service interface {
 }
 
 type service struct {
-	db            *sql.DB
-	txRepo        Repository
-	accountRepo   account.Repository
-	ledgerRepo    ledger.Repository
-	accountLocks  sync.Map // Map of account ID to mutex
+	db             *sql.DB
+	txRepo         Repository
+	accountRepo    account.Repository
+	ledgerRepo     ledger.Repository
+	fraudService   fraud.Service
+	fraudRepo      fraud.Repository
+	webhookService WebhookService
+	accountLocks   sync.Map // Map of account ID to mutex
+}
+
+// WebhookService interface to avoid circular dependency
+type WebhookService interface {
+	TriggerEvent(ctx context.Context, eventType string, eventID uuid.UUID, payload map[string]interface{}) error
 }
 
 func NewService(
@@ -37,12 +46,18 @@ func NewService(
 	txRepo Repository,
 	accountRepo account.Repository,
 	ledgerRepo ledger.Repository,
+	fraudService fraud.Service,
+	fraudRepo fraud.Repository,
+	webhookService WebhookService,
 ) Service {
 	return &service{
-		db:          db,
-		txRepo:      txRepo,
-		accountRepo: accountRepo,
-		ledgerRepo:  ledgerRepo,
+		db:             db,
+		txRepo:         txRepo,
+		accountRepo:    accountRepo,
+		ledgerRepo:     ledgerRepo,
+		fraudService:   fraudService,
+		fraudRepo:      fraudRepo,
+		webhookService: webhookService,
 	}
 }
 
@@ -98,6 +113,13 @@ func (s *service) Deposit(ctx context.Context, req *DepositRequest) (*Transactio
 		return nil, err
 	}
 
+	// Fraud detection check
+	if err := s.checkFraud(ctx, tx.ID, req.AccountID, req.Amount, TypeDeposit); err != nil {
+		// Mark transaction as failed due to fraud
+		s.txRepo.UpdateStatusWithTx(ctx, sqlTx, tx.ID, StatusFailed)
+		return nil, err
+	}
+
 	// Update account balance
 	newBalance := acc.Balance + req.Amount
 	if err := s.updateBalanceInTx(ctx, sqlTx, req.AccountID, newBalance); err != nil {
@@ -137,6 +159,18 @@ func (s *service) Deposit(ctx context.Context, req *DepositRequest) (*Transactio
 	// Record metrics
 	duration := time.Since(start).Seconds()
 	metrics.RecordTransaction(TypeDeposit, "success", duration, req.Amount)
+
+	// Trigger webhook event
+	if s.webhookService != nil {
+		go s.webhookService.TriggerEvent(ctx, "transaction.completed", tx.ID, map[string]interface{}{
+			"transaction_id": tx.ID.String(),
+			"type":           "DEPOSIT",
+			"amount":         req.Amount,
+			"account_id":     req.AccountID.String(),
+			"status":         "COMPLETED",
+			"timestamp":      time.Now().Format(time.RFC3339),
+		})
+	}
 
 	return &TransactionResponse{
 		TransactionID: tx.ID,
@@ -202,6 +236,13 @@ func (s *service) Withdrawal(ctx context.Context, req *WithdrawalRequest) (*Tran
 		return nil, err
 	}
 
+	// Fraud detection check
+	if err := s.checkFraud(ctx, tx.ID, req.AccountID, req.Amount, TypeWithdrawal); err != nil {
+		// Mark transaction as failed due to fraud
+		s.txRepo.UpdateStatusWithTx(ctx, sqlTx, tx.ID, StatusFailed)
+		return nil, err
+	}
+
 	// Update account balance
 	newBalance := acc.Balance - req.Amount
 	if err := s.updateBalanceInTx(ctx, sqlTx, req.AccountID, newBalance); err != nil {
@@ -241,6 +282,18 @@ func (s *service) Withdrawal(ctx context.Context, req *WithdrawalRequest) (*Tran
 	// Record metrics
 	duration := time.Since(start).Seconds()
 	metrics.RecordTransaction(TypeWithdrawal, "success", duration, req.Amount)
+
+	// Trigger webhook event
+	if s.webhookService != nil {
+		go s.webhookService.TriggerEvent(ctx, "transaction.completed", tx.ID, map[string]interface{}{
+			"transaction_id": tx.ID.String(),
+			"type":           "WITHDRAWAL",
+			"amount":         req.Amount,
+			"account_id":     req.AccountID.String(),
+			"status":         "COMPLETED",
+			"timestamp":      time.Now().Format(time.RFC3339),
+		})
+	}
 
 	return &TransactionResponse{
 		TransactionID: tx.ID,
@@ -323,6 +376,13 @@ func (s *service) Transfer(ctx context.Context, req *TransferRequest) (*Transact
 		return nil, err
 	}
 
+	// Fraud detection check
+	if err := s.checkFraud(ctx, tx.ID, req.FromAccountID, req.Amount, TypeTransfer); err != nil {
+		// Mark transaction as failed due to fraud
+		s.txRepo.UpdateStatusWithTx(ctx, sqlTx, tx.ID, StatusFailed)
+		return nil, err
+	}
+
 	// Debit from source account
 	newFromBalance := fromAcc.Balance - req.Amount
 	if err := s.updateBalanceInTx(ctx, sqlTx, req.FromAccountID, newFromBalance); err != nil {
@@ -381,6 +441,19 @@ func (s *service) Transfer(ctx context.Context, req *TransferRequest) (*Transact
 	duration := time.Since(start).Seconds()
 	metrics.RecordTransaction(TypeTransfer, "success", duration, req.Amount)
 
+	// Trigger webhook event
+	if s.webhookService != nil {
+		go s.webhookService.TriggerEvent(ctx, "transaction.completed", tx.ID, map[string]interface{}{
+			"transaction_id": tx.ID.String(),
+			"type":           "TRANSFER",
+			"amount":         req.Amount,
+			"from_account":   req.FromAccountID.String(),
+			"to_account":     req.ToAccountID.String(),
+			"status":         "COMPLETED",
+			"timestamp":      time.Now().Format(time.RFC3339),
+		})
+	}
+
 	return &TransactionResponse{
 		TransactionID: tx.ID,
 		Status:        StatusCompleted,
@@ -411,4 +484,52 @@ func (s *service) updateBalanceInTx(ctx context.Context, tx *sql.Tx, accountID u
 	`
 	_, err := tx.ExecContext(ctx, query, newBalance, accountID)
 	return err
+}
+
+// Helper: Check for fraud
+func (s *service) checkFraud(ctx context.Context, txID, accountID uuid.UUID, amount float64, txType string) error {
+	// Get recent transactions for velocity analysis
+	recentTxs, err := s.fraudRepo.GetRecentTransactions(ctx, accountID, time.Now().Add(-1*time.Hour))
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get recent transactions for fraud check")
+		recentTxs = []fraud.RecentTransaction{}
+	}
+
+	// Create fraud check context
+	fraudCtx := &fraud.TransactionContext{
+		TransactionID:      txID,
+		AccountID:          accountID,
+		Amount:             amount,
+		Type:               txType,
+		Timestamp:          time.Now(),
+		RecentTransactions: recentTxs,
+	}
+
+	// Run fraud detection
+	result, err := s.fraudService.CheckTransaction(ctx, fraudCtx)
+	if err != nil {
+		logger.Error().Err(err).Msg("fraud check failed")
+		return nil // Don't block transaction on fraud check errors
+	}
+
+	// Block transaction if action is BLOCK
+	if result.Action == fraud.ActionBlock {
+		logger.Warn().
+			Str("transaction_id", txID.String()).
+			Int("risk_score", result.RiskScore).
+			Strs("reasons", result.Reasons).
+			Msg("transaction blocked by fraud detection")
+
+		return apperrors.New("FRAUD_DETECTED", fmt.Sprintf("Transaction blocked: %v", result.Reasons), 403)
+	}
+
+	// Log if flagged for review
+	if result.Action == fraud.ActionReview {
+		logger.Warn().
+			Str("transaction_id", txID.String()).
+			Int("risk_score", result.RiskScore).
+			Msg("transaction flagged for fraud review")
+	}
+
+	return nil
 }
