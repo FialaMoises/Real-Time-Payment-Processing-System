@@ -129,6 +129,26 @@ services:
       - '--storage.path=/alertmanager'
     restart: unless-stopped
 
+  # ML Service - Machine Learning for Fraud Detection
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: payments-ml-service
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=payments
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    volumes:
+      - ./ml-service/models:/app/models
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

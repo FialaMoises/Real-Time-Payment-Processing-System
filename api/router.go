@@ -8,9 +8,11 @@ import (
 	"github.com/yourusername/real-time-payments/api/handlers"
 	"github.com/yourusername/real-time-payments/internal/account"
 	"github.com/yourusername/real-time-payments/internal/auth"
+	"github.com/yourusername/real-time-payments/internal/fraud"
 	"github.com/yourusername/real-time-payments/internal/ledger"
 	"github.com/yourusername/real-time-payments/internal/transaction"
 	"github.com/yourusername/real-time-payments/internal/user"
+	"github.com/yourusername/real-time-payments/internal/webhook"
 	"github.com/yourusername/real-time-payments/pkg/middleware"
 )
 
@@ -43,11 +45,15 @@ func (r *Router) Setup() *gin.Engine {
 	accountRepo := account.NewRepository(r.db)
 	txRepo := transaction.NewRepository(r.db)
 	ledgerRepo := ledger.NewRepository(r.db)
+	fraudRepo := fraud.NewRepository(r.db)
+	webhookRepo := webhook.NewRepository(r.db)
 
 	// Initialize services
 	userService := user.NewService(userRepo, r.jwtService, 3600)
 	accountService := account.NewService(accountRepo)
-	txService := transaction.NewService(r.db, txRepo, accountRepo, ledgerRepo)
+	fraudService := fraud.NewService(fraudRepo)
+	webhookService := webhook.NewService(webhookRepo)
+	txService := transaction.NewService(r.db, txRepo, accountRepo, ledgerRepo, fraudService, fraudRepo, webhookService)
 	ledgerService := ledger.NewService(ledgerRepo)
 
 	// Initialize handlers
@@ -55,6 +61,8 @@ func (r *Router) Setup() *gin.Engine {
 	accountHandler := handlers.NewAccountHandler(accountService)
 	txHandler := handlers.NewTransactionHandler(txService)
 	ledgerHandler := handlers.NewLedgerHandler(ledgerService)
+	fraudHandler := handlers.NewFraudHandler(fraudService)
+	webhookHandler := handlers.NewWebhookHandler(webhookService)
 	healthHandler := handlers.NewHealthHandler(r.db)
 
 	// Metrics endpoint (Prometheus)
@@ -91,6 +99,20 @@ func (r *Router) Setup() *gin.Engine {
 
 		// Ledger
 		protected.GET("/ledger/:account_id", ledgerHandler.GetLedgerByAccountID)
+
+		// Fraud Detection
+		protected.GET("/fraud/alerts/transaction/:transaction_id", fraudHandler.GetAlertByTransaction)
+		protected.GET("/fraud/alerts/pending", fraudHandler.ListPendingAlerts)
+		protected.POST("/fraud/alerts/:alert_id/review", fraudHandler.ReviewAlert)
+		protected.GET("/fraud/accounts/:account_id/risk-history", fraudHandler.GetAccountRiskHistory)
+
+		// Webhooks
+		protected.POST("/webhooks", webhookHandler.CreateSubscription)
+		protected.GET("/webhooks", webhookHandler.GetSubscriptions)
+		protected.PUT("/webhooks/:id", webhookHandler.UpdateSubscription)
+		protected.DELETE("/webhooks/:id", webhookHandler.DeleteSubscription)
+		protected.GET("/webhooks/:id/deliveries", webhookHandler.GetDeliveryHistory)
+		protected.POST("/webhooks/deliveries/:id/retry", webhookHandler.RetryDelivery)
 	}
 
 	return r.engine
